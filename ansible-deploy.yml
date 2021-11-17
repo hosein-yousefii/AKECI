@@ -1,0 +1,51 @@
+---
+- hosts: all
+  become: yes
+  gather_facts: no
+  tasks:
+
+        - name: create local registery
+          shell: docker container run -d -p 5000:5000 --name registry registry
+          ignore_errors: yes
+
+        - name: installing kind
+          shell: curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64 && chmod +x ./kind && mv ./kind /usr/bin/kind
+ 
+         - name: copy check-pods-certificate.sh to /usr/bin
+          copy:
+            src: ./*
+            dest: /tmp/cluster-requirements
+ 
+        - name: create cluster
+          raw: kind create cluster --config /tmp/cluster-requirements/kind.config.yaml
+         
+        - name: config load balancer
+          shell: kubectl apply -f /tmp/cluster-requirements/contour.yaml
+
+        - name: config cert-manager
+          shell: kubectl apply -f /tmp/cluster-requirements/cert-manager.yaml
+
+        - name: service configuration
+          shell: kubectl apply -f /tmp/cluster-requirements/service.yaml
+
+        - name: letsencrypt configuration
+          shell: sleep 90 && kubectl apply -f /tmp/cluster-requirements/letsencrypt-prod.yaml
+
+        - name: ingress configuration
+          shell: kubectl apply -f /tmp/cluster-requirements/ingress.yaml
+
+        - name: copy heck-pods-certificate.sh to /usr/bin
+          copy:
+            src: /tmp/cluster-requirements/check-pods-certificate.sh
+            dest: /usr/bin/
+            remote_src: yes
+            mode: '0750'
+
+        - name: put check-pods-certificate script to crontab
+          shell: grep "check-pods-certificate.sh" /etc/crontab; if [[ $? -ne 0 ]];then echo "00 23 * * * root source /usr/bin/check-pods-certificate.sh" >> /etc/crontab;fi
+
+
+        - name: delete files
+          file:
+            path: /tmp/cluster-requirements/
+            state: absent

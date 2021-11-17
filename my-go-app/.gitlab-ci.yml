@@ -1,0 +1,23 @@
+stages: 
+    - build
+    - deploy
+build:
+    stage: build
+    before_script:
+        - docker info
+    script:
+        - docker build -t my-go-app .
+        - docker tag my-go-app slashgeek.ir:5000/my-go-app:1.0
+        - docker push slashgeek.ir:5000/my-go-app:1.0
+    rules:
+        - exists:
+            - Dockerfile
+
+deploy:
+    stage: deploy
+    script:
+        - kind load docker-image localhost:5000/my-go-app:1.0
+        - kubectl  delete -f deploy-app.yaml || echo exist && kubectl  apply -f deploy-app.yaml 
+
+
+

@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: go-app
+  name: go-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: go-app
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: go-app
+    spec:
+      containers:
+      - image: localhost:5000/my-go-app:1.0
+        imagePullPolicy: IfNotPresent
+        name: go-app
+        ports:
+        - containerPort: 5555
+          name: http
+      dnsPolicy: ClusterFirst
